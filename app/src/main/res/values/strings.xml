@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cloudpaper</string>
+    <string name="nav_home">Início</string>
+    <string name="nav_drive">Google Drive</string>
+    <string name="nav_gallery">Galeria</string>
+    <string name="nav_settings">Ajustes</string>
+</resources>
