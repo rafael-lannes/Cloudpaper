@@ -8,6 +8,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import androidx.core.net.toUri
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
+import androidx.core.content.FileProvider
 import com.cloudpaper.app.data.drive.DriveAuthHelper
 import com.cloudpaper.app.data.drive.GoogleDriveService
 import com.cloudpaper.app.data.model.ScheduleConfig
@@ -44,6 +48,78 @@ class WallpaperRepository(
             dir.mkdirs()
         }
         return dir
+    }
+
+    /**
+     * Returns the absolute path of the offline wallpapers folder.
+     */
+    fun getOfflineFolderPath(): String {
+        return getOfflineWallpapersDir().absolutePath
+    }
+
+    /**
+     * Returns a user-friendly path representation.
+     */
+    fun getReadableOfflineFolderPath(): String {
+        val absolutePath = getOfflineFolderPath()
+        return if (absolutePath.contains("/Android/data/")) {
+            "Armazenamento Principal > Android > data > com.cloudpaper.app > files > Pictures > wallpapers"
+        } else {
+            absolutePath
+        }
+    }
+
+    /**
+     * Copies the offline folder path to the system clipboard.
+     */
+    fun copyFolderPathToClipboard(context: Context) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Caminho Pasta Cloudpaper", getOfflineFolderPath())
+        clipboard.setPrimaryClip(clip)
+    }
+
+    /**
+     * Attempts to open the offline folder in a file manager app.
+     */
+    fun openOfflineFolderInFileManager(context: Context): Boolean {
+        val dir = getOfflineWallpapersDir()
+        try {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                dir
+            )
+
+            val intents = listOf(
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "vnd.android.document/directory")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "*/*")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent(Intent.ACTION_GET_CONTENT).apply {
+                    setDataAndType(uri, "image/*")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+
+            for (intent in intents) {
+                try {
+                    context.startActivity(intent)
+                    return true
+                } catch (e: Exception) {
+                    // Try next intent
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Fallback: copy to clipboard if cannot launch file explorer directly
+        copyFolderPathToClipboard(context)
+        return false
     }
 
     /**

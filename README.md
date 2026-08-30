@@ -21,7 +21,10 @@
   - Sincronização incremental: baixa apenas imagens novas sem desperdiçar franquia de dados.
   - **Resiliência Offline**: Se o dispositivo ficar sem internet, a rotação de papéis de parede continua funcionando normalmente utilizando a pasta offline sincronizada.
 
-- 📁 **Galeria Offline & Importação Local**:
+- 📁 **Galeria Offline & Pasta Local de Wallpapers**:
+  - Exibe com clareza o caminho exato onde os papéis de parede ficam salvos no aparelho (`Armazenamento Principal > Android > data > com.cloudpaper.app > files > Pictures > wallpapers`).
+  - **Botão de Atalho "Abrir Pasta"**: Abre o gerenciador de arquivos do celular diretamente na pasta offline.
+  - **Botão "Copiar Caminho"**: Copia o caminho absoluto para a área de transferência com um clique.
   - Galeria em grade para visualizar todos os papéis de parede salvos no aparelho.
   - Pré-visualização em tela cheia com alta qualidade.
   - Permite importar imagens da galeria do celular para a pasta de rotação offline.

@@ -247,6 +247,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    val offlineFolderPath: String
+        get() = repository.getOfflineFolderPath()
+
+    val readableOfflineFolderPath: String
+        get() = repository.getReadableOfflineFolderPath()
+
+    fun openOfflineFolder(context: android.content.Context) {
+        val opened = repository.openOfflineFolderInFileManager(context)
+        if (!opened) {
+            _userMessage.value = "Caminho copiado! Cole no seu gerenciador de arquivos."
+        }
+    }
+
+    fun copyFolderPath(context: android.content.Context) {
+        repository.copyFolderPathToClipboard(context)
+        _userMessage.value = "Caminho da pasta copiado para a área de transferência!"
+    }
+
     fun dismissMessage() {
         _userMessage.value = null
     }

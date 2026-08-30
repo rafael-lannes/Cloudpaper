@@ -139,6 +139,7 @@ fun HomeScreen(
         }
 
         // Recent Offline Wallpapers Carousel
+        val context = androidx.compose.ui.platform.LocalContext.current
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -150,11 +151,20 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Galeria Offline (${offlineWallpapers.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Galeria Offline (${offlineWallpapers.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "📁 " + viewModel.readableOfflineFolderPath,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
                     TextButton(onClick = onNavigateToGallery) {
                         Text("Ver Todos")
                         Spacer(modifier = Modifier.width(4.dp))
