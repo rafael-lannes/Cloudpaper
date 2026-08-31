@@ -258,6 +258,7 @@ com.cloudpaper.app:string/m3c_dropdown_menu_toggle = 0x7f0c0049
 com.cloudpaper.app:drawable/notification_template_icon_bg = 0x7f070027
 com.cloudpaper.app:drawable/common_google_signin_btn_icon_light_normal_background = 0x7f07000a
 com.cloudpaper.app:string/m3c_tooltip_pane_description = 0x7f0c005a
+com.cloudpaper.app:xml/file_paths = 0x7f0f0002
 com.cloudpaper.app:drawable/common_google_signin_btn_icon_light_normal = 0x7f070009
 com.cloudpaper.app:color/common_google_signin_btn_tint = 0x7f05000f
 com.cloudpaper.app:id/chronometer = 0x7f08002c

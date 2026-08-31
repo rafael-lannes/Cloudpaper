@@ -1,4 +1,4 @@
-#Sun Aug 30 19:46:15 BRT 2026
+#Sun Aug 30 20:41:07 BRT 2026
 base.0=D\:\\Gamedev\\Projetos\\Cloudpaper\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
 base.1=D\:\\Gamedev\\Projetos\\Cloudpaper\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
 base.10=D\:\\Gamedev\\Projetos\\Cloudpaper\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex

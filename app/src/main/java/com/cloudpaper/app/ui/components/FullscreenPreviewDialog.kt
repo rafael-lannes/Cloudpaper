@@ -40,7 +40,7 @@ fun FullscreenPreviewDialog(
         ) {
             // High-res Image Preview
             AsyncImage(
-                model = item.fileUri ?: item.filePath ?: item.thumbnailUrl,
+                model = item.fileUri ?: item.filePath,
                 contentDescription = item.name,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()

@@ -13,9 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cloudpaper.app.data.model.WallpaperItem
+import com.cloudpaper.app.data.model.WallpaperSource
 import com.cloudpaper.app.ui.components.FullscreenPreviewDialog
 import com.cloudpaper.app.ui.components.WallpaperCard
 import com.cloudpaper.app.ui.viewmodel.MainViewModel
@@ -23,20 +25,20 @@ import com.cloudpaper.app.ui.viewmodel.MainViewModel
 @Composable
 fun GalleryScreen(
     viewModel: MainViewModel,
-    onNavigateToDrive: () -> Unit,
+    onNavigateToFolderSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val offlineWallpapers by viewModel.offlineWallpapers.collectAsState()
+    val context = LocalContext.current
+    val wallpapers by viewModel.wallpapers.collectAsState()
+    val config by viewModel.scheduleConfig.collectAsState()
     var selectedPreviewItem by remember { mutableStateOf<WallpaperItem?>(null) }
 
-    // Launcher to pick images from local device storage
+    // Launcher to pick images from local device storage into default app folder
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { viewModel.importImage(it) }
     }
-
-    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(
         modifier = modifier
@@ -51,19 +53,19 @@ fun GalleryScreen(
         ) {
             Column {
                 Text(
-                    text = "Papéis de Parede Offline",
+                    text = "Galeria de Wallpapers",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${offlineWallpapers.size} itens disponíveis no dispositivo",
+                    text = "${wallpapers.size} papéis de parede na pasta ativa",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(onClick = { viewModel.refreshOfflineWallpapers() }) {
+                IconButton(onClick = { viewModel.refreshWallpapers() }) {
                     Icon(imageVector = Icons.Default.Refresh, contentDescription = "Atualizar")
                 }
 
@@ -84,37 +86,42 @@ fun GalleryScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Card de Localização e Atalho da Pasta Offline
+        // Card de Localização e Atalho da Pasta Ativa
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Onde ficam salvos os wallpapers?",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                                "Pasta Selecionada no Aparelho"
+                            else
+                                "Pasta Padrão do Aplicativo",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    TextButton(onClick = onNavigateToFolderSelect) {
+                        Text("Trocar Pasta")
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = "Os papéis de parede sincronizados do Google Drive ou adicionados ficam armazenados nesta pasta do aparelho:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -123,19 +130,24 @@ fun GalleryScreen(
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
                         Text(
-                            text = viewModel.readableOfflineFolderPath,
+                            text = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                                (config.customFolderDisplayName ?: "Pasta Personalizada")
+                            else
+                                viewModel.readableDefaultFolderPath,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = viewModel.offlineFolderPath,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (config.source == WallpaperSource.DEFAULT_APP_FOLDER) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = viewModel.defaultFolderPath,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
@@ -146,7 +158,7 @@ fun GalleryScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { viewModel.openOfflineFolder(context) },
+                        onClick = { viewModel.openFolder(context) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -178,7 +190,7 @@ fun GalleryScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (offlineWallpapers.isEmpty()) {
+        if (wallpapers.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -197,13 +209,13 @@ fun GalleryScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Sua pasta offline está vazia",
+                        text = "Nenhum papel de parede nesta pasta",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Você pode importar fotos do seu aparelho ou sincronizar sua pasta do Google Drive.",
+                        text = "Você pode importar fotos para o app ou apontar para uma pasta com imagens no seu celular.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -222,12 +234,12 @@ fun GalleryScreen(
                         }
 
                         OutlinedButton(
-                            onClick = onNavigateToDrive,
+                            onClick = onNavigateToFolderSelect,
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.CloudSync, contentDescription = null)
+                            Icon(imageVector = Icons.Default.CreateNewFolder, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sincronizar Drive")
+                            Text("Apontar Pasta")
                         }
                     }
                 }
@@ -239,7 +251,7 @@ fun GalleryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(offlineWallpapers, key = { it.id }) { item ->
+                items(wallpapers, key = { it.id }) { item ->
                     WallpaperCard(
                         item = item,
                         onClick = { selectedPreviewItem = item }

@@ -40,16 +40,6 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            excludes += "META-INF/DEPENDENCIES"
-            excludes += "META-INF/LICENSE"
-            excludes += "META-INF/LICENSE.txt"
-            excludes += "META-INF/license.txt"
-            excludes += "META-INF/NOTICE"
-            excludes += "META-INF/NOTICE.txt"
-            excludes += "META-INF/notice.txt"
-            excludes += "META-INF/ASL2.0"
-            excludes += "META-INF/*.kotlin_module"
-            excludes += "META-INF/INDEX.LIST"
         }
     }
 }
@@ -69,7 +59,10 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
 
-    // WorkManager for background scheduled wallpaper changes & sync
+    // Storage Access Framework (SAF DocumentFile) for custom local folders
+    implementation(libs.androidx.documentfile)
+
+    // WorkManager for background scheduled wallpaper changes
     implementation(libs.androidx.work.runtime.ktx)
 
     // DataStore Preferences for persistence
@@ -77,18 +70,10 @@ dependencies {
 
     // Coil for Compose image loading
     implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.coroutines.play.services)
-
-    // Google Sign-In & Google Drive API v3
-    implementation(libs.google.play.services.auth)
-    implementation(libs.google.http.client.android)
-    implementation(libs.google.api.client.android)
-    implementation(libs.google.api.services.drive)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

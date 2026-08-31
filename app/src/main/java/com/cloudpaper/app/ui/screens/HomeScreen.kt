@@ -12,11 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cloudpaper.app.data.model.WallpaperItem
 import com.cloudpaper.app.data.model.WallpaperSource
-import com.cloudpaper.app.data.model.WallpaperTarget
 import com.cloudpaper.app.ui.components.FullscreenPreviewDialog
 import com.cloudpaper.app.ui.components.StatusBanner
 import com.cloudpaper.app.ui.components.WallpaperCard
@@ -26,12 +26,13 @@ import com.cloudpaper.app.ui.viewmodel.MainViewModel
 fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToGallery: () -> Unit,
-    onNavigateToDrive: () -> Unit,
+    onNavigateToFolderSelect: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val config by viewModel.scheduleConfig.collectAsState()
-    val offlineWallpapers by viewModel.offlineWallpapers.collectAsState()
+    val wallpapers by viewModel.wallpapers.collectAsState()
     val isChanging by viewModel.isChangingWallpaper.collectAsState()
 
     var selectedPreviewItem by remember { mutableStateOf<WallpaperItem?>(null) }
@@ -46,7 +47,7 @@ fun HomeScreen(
         // Status & Overview Banner
         StatusBanner(
             config = config,
-            totalOfflineWallpapers = offlineWallpapers.size
+            totalOfflineWallpapers = wallpapers.size
         )
 
         // Primary Action: Quick Change Button
@@ -83,14 +84,26 @@ fun HomeScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Fonte dos Papéis de Parede",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Pasta Fonte dos Papéis de Parede",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    TextButton(onClick = onNavigateToFolderSelect) {
+                        Text("Configurar")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Escolha de onde o app deve obter os wallpapers:",
+                    text = "Escolha de onde o app sorteará os papéis de parede:",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -127,7 +140,10 @@ fun HomeScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = source.description,
+                                    text = if (source == WallpaperSource.CUSTOM_DEVICE_FOLDER && config.customFolderDisplayName != null)
+                                        "Pasta vinculada: ${config.customFolderDisplayName}"
+                                    else
+                                        source.description,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -139,7 +155,6 @@ fun HomeScreen(
         }
 
         // Recent Offline Wallpapers Carousel
-        val context = androidx.compose.ui.platform.LocalContext.current
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -153,12 +168,15 @@ fun HomeScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Galeria Offline (${offlineWallpapers.size})",
+                            text = "Galeria de Wallpapers (${wallpapers.size})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "📁 " + viewModel.readableOfflineFolderPath,
+                            text = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                                "📁 " + (config.customFolderDisplayName ?: "Pasta do Dispositivo")
+                            else
+                                "📁 " + viewModel.readableDefaultFolderPath,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
@@ -172,7 +190,7 @@ fun HomeScreen(
                     }
                 }
 
-                if (offlineWallpapers.isEmpty()) {
+                if (wallpapers.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -181,22 +199,22 @@ fun HomeScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Default.CloudDownload,
+                                imageVector = Icons.Default.FolderOpen,
                                 contentDescription = null,
                                 modifier = Modifier.size(40.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Nenhum papel de parede salvo offline.",
+                                text = "Nenhum papel de parede encontrado na pasta ativa.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(12.dp))
-                            FilledTonalButton(onClick = onNavigateToDrive) {
-                                Icon(imageVector = Icons.Default.CloudSync, contentDescription = null)
+                            FilledTonalButton(onClick = onNavigateToFolderSelect) {
+                                Icon(imageVector = Icons.Default.CreateNewFolder, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sincronizar com Drive")
+                                Text("Apontar Pasta no Celular")
                             }
                         }
                     }
@@ -205,7 +223,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        items(offlineWallpapers.take(10)) { item ->
+                        items(wallpapers.take(10)) { item ->
                             WallpaperCard(
                                 item = item,
                                 onClick = { selectedPreviewItem = item },
@@ -223,15 +241,15 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OutlinedButton(
-                onClick = onNavigateToDrive,
+                onClick = onNavigateToFolderSelect,
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(imageVector = Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(imageVector = Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Google Drive")
+                Text("Pastas")
             }
 
             OutlinedButton(

@@ -1,6 +1,5 @@
 package com.cloudpaper.app.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,8 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cloudpaper.app.data.model.WallpaperSource
 import com.cloudpaper.app.data.model.WallpaperTarget
 import com.cloudpaper.app.ui.components.IntervalPickerDialog
 import com.cloudpaper.app.ui.components.PRESET_INTERVALS
@@ -21,8 +22,10 @@ import com.cloudpaper.app.ui.viewmodel.MainViewModel
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
+    onNavigateToFolderSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val config by viewModel.scheduleConfig.collectAsState()
     var showIntervalDialog by remember { mutableStateOf(false) }
 
@@ -161,136 +164,65 @@ fun SettingsScreen(
             }
         }
 
-        // Section 3: Battery & Network Constraints
+        // Section 3: Pasta Ativa
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Economia e Conexão",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Apenas no Wi-Fi",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Não usa dados móveis para downloads de wallpapers",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = config.requireWifiOnly,
-                        onCheckedChange = { viewModel.setRequireWifiOnly(it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Apenas Carregando",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "Troca o wallpaper somente quando o celular estiver no carregador",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Pasta Fonte Ativa",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    Switch(
-                        checked = config.requireChargingOnly,
-                        onCheckedChange = { viewModel.setRequireChargingOnly(it) }
-                    )
-                }
-            }
-        }
 
-        // Section 4: Pasta de Armazenamento Offline
-        val context = androidx.compose.ui.platform.LocalContext.current
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Pasta de Armazenamento Offline",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    TextButton(onClick = onNavigateToFolderSelect) {
+                        Text("Gerenciar")
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = "Diretório do dispositivo onde os papéis de parede ficam salvos:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = viewModel.readableOfflineFolderPath,
+                            text = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                                (config.customFolderDisplayName ?: "Pasta Personalizada")
+                            else
+                                viewModel.readableDefaultFolderPath,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = viewModel.offlineFolderPath,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { viewModel.openOfflineFolder(context) },
+                        onClick = { viewModel.openFolder(context) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -320,6 +252,46 @@ fun SettingsScreen(
             }
         }
 
+        // Section 4: Battery Constraint
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Economia de Bateria",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Apenas Carregando",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Troca o wallpaper somente quando o celular estiver no carregador",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = config.requireChargingOnly,
+                        onCheckedChange = { viewModel.setRequireChargingOnly(it) }
+                    )
+                }
+            }
+        }
+
         // Section 5: App Info Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -337,7 +309,7 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Sincronizador automático de wallpapers com Google Drive e armazenamento local offline.",
+                    text = "Trocador automático de wallpapers a partir de pastas locais do dispositivo.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center

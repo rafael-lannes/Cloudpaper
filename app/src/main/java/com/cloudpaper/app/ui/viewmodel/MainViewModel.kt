@@ -4,45 +4,31 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.cloudpaper.app.data.drive.DriveAuthHelper
 import com.cloudpaper.app.data.model.ScheduleConfig
-import com.cloudpaper.app.data.model.SyncResult
 import com.cloudpaper.app.data.model.WallpaperItem
 import com.cloudpaper.app.data.model.WallpaperSource
 import com.cloudpaper.app.data.model.WallpaperTarget
 import com.cloudpaper.app.data.repository.WallpaperRepository
 import com.cloudpaper.app.worker.WorkScheduler
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = WallpaperRepository(application)
     private val preferences = repository.preferences
-    val driveAuthHelper = repository.driveAuthHelper
 
     val scheduleConfig: StateFlow<ScheduleConfig> = preferences.scheduleConfigFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScheduleConfig())
 
-    val driveFolderId: StateFlow<String?> = preferences.driveFolderIdFlow
+    val customFolderUri: StateFlow<String?> = preferences.customFolderUriFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val driveFolderName: StateFlow<String?> = preferences.driveFolderNameFlow
+    val customFolderDisplayName: StateFlow<String?> = preferences.customFolderDisplayNameFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val googleAccountEmail: StateFlow<String?> = preferences.googleAccountEmailFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    val googleAccountDisplayName: StateFlow<String?> = preferences.googleAccountDisplayNameFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    private val _offlineWallpapers = MutableStateFlow<List<WallpaperItem>>(emptyList())
-    val offlineWallpapers: StateFlow<List<WallpaperItem>> = _offlineWallpapers.asStateFlow()
-
-    private val _syncState = MutableStateFlow<SyncResult>(SyncResult.Idle)
-    val syncState: StateFlow<SyncResult> = _syncState.asStateFlow()
+    private val _wallpapers = MutableStateFlow<List<WallpaperItem>>(emptyList())
+    val wallpapers: StateFlow<List<WallpaperItem>> = _wallpapers.asStateFlow()
 
     private val _isChangingWallpaper = MutableStateFlow(false)
     val isChangingWallpaper: StateFlow<Boolean> = _isChangingWallpaper.asStateFlow()
@@ -51,22 +37,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val userMessage: StateFlow<String?> = _userMessage.asStateFlow()
 
     init {
-        refreshOfflineWallpapers()
-        checkExistingGoogleAccount()
-    }
-
-    private fun checkExistingGoogleAccount() {
-        val account = driveAuthHelper.getLastSignedInAccount()
-        if (account != null) {
-            viewModelScope.launch {
-                preferences.setGoogleAccount(account.email, account.displayName)
+        refreshWallpapers()
+        viewModelScope.launch {
+            scheduleConfig.collect {
+                refreshWallpapers()
             }
         }
     }
 
-    fun refreshOfflineWallpapers() {
+    fun refreshWallpapers() {
         viewModelScope.launch {
-            _offlineWallpapers.value = repository.getOfflineWallpapers()
+            _wallpapers.value = repository.getActiveWallpapers()
         }
     }
 
@@ -77,9 +58,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val success = repository.changeRandomWallpaper()
                 if (success) {
                     _userMessage.value = "Papel de parede alterado com sucesso!"
-                    refreshOfflineWallpapers()
+                    refreshWallpapers()
                 } else {
-                    _userMessage.value = "Nenhum papel de parede disponível. Adicione imagens ou sincronize o Drive."
+                    _userMessage.value = "Nenhum papel de parede encontrado na pasta ativa. Adicione imagens ou selecione outra pasta."
                 }
             } catch (e: Exception) {
                 _userMessage.value = "Erro ao alterar wallpaper: ${e.localizedMessage}"
@@ -91,52 +72,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun applySpecificWallpaper(item: WallpaperItem, target: WallpaperTarget) {
         viewModelScope.launch {
-            item.filePath?.let { path ->
-                val file = File(path)
-                if (file.exists()) {
-                    val success = repository.applyWallpaper(file, target)
-                    if (success) {
-                        _userMessage.value = "Papel de parede aplicado (${target.title})!"
-                    } else {
-                        _userMessage.value = "Não foi possível aplicar o papel de parede."
-                    }
-                }
-            }
-        }
-    }
-
-    fun syncGoogleDrive() {
-        viewModelScope.launch {
-            val account = driveAuthHelper.getLastSignedInAccount()
-            if (account == null) {
-                _userMessage.value = "Por favor, conecte sua conta Google primeiro."
-                _syncState.value = SyncResult.Error("Conta Google não conectada.")
-                return@launch
-            }
-
-            val folder = driveFolderId.value
-            if (folder.isNullOrBlank()) {
-                _userMessage.value = "Configure a pasta do Google Drive antes de sincronizar."
-                _syncState.value = SyncResult.Error("Pasta do Google Drive não configurada.")
-                return@launch
-            }
-
-            _syncState.value = SyncResult.InProgress("Verificando pasta do Google Drive...", 0, 0)
-
-            val result = repository.syncGoogleDrive { current, total, fileName ->
-                _syncState.value = SyncResult.InProgress("Baixando ($current/$total): $fileName", current, total)
-            }
-
-            _syncState.value = result
-            when (result) {
-                is SyncResult.Success -> {
-                    _userMessage.value = result.message
-                    refreshOfflineWallpapers()
-                }
-                is SyncResult.Error -> {
-                    _userMessage.value = result.errorMessage
-                }
-                else -> {}
+            val success = repository.applyWallpaper(item, target)
+            if (success) {
+                _userMessage.value = "Papel de parede aplicado (${target.title})!"
+            } else {
+                _userMessage.value = "Não foi possível aplicar o papel de parede."
             }
         }
     }
@@ -145,8 +85,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val success = repository.importImage(uri)
             if (success) {
-                _userMessage.value = "Imagem importada com sucesso para a pasta offline!"
-                refreshOfflineWallpapers()
+                _userMessage.value = "Imagem importada com sucesso para a pasta do aplicativo!"
+                refreshWallpapers()
             } else {
                 _userMessage.value = "Falha ao importar imagem."
             }
@@ -155,10 +95,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteWallpaper(item: WallpaperItem) {
         viewModelScope.launch {
-            val success = repository.deleteOfflineWallpaper(item)
+            val success = repository.deleteWallpaper(item)
             if (success) {
                 _userMessage.value = "Papel de parede removido."
-                refreshOfflineWallpapers()
+                refreshWallpapers()
             }
         }
     }
@@ -191,21 +131,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setWallpaperSource(source: WallpaperSource) {
         viewModelScope.launch {
             preferences.setWallpaperSource(source)
-            if (source == WallpaperSource.AUTO_SYNC) {
-                WorkScheduler.schedulePeriodicDriveSync(getApplication())
-            } else {
-                WorkScheduler.cancelDriveSync(getApplication())
-            }
-        }
-    }
-
-    fun setRequireWifiOnly(wifiOnly: Boolean) {
-        viewModelScope.launch {
-            preferences.setRequireWifiOnly(wifiOnly)
-            val currentConfig = scheduleConfig.value.copy(requireWifiOnly = wifiOnly)
-            if (currentConfig.isAutoChangeEnabled) {
-                WorkScheduler.scheduleWallpaperRotation(getApplication(), currentConfig)
-            }
+            refreshWallpapers()
         }
     }
 
@@ -219,50 +145,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setDriveFolder(folderInput: String, folderName: String = "") {
+    fun setCustomFolder(uri: Uri, displayName: String?) {
         viewModelScope.launch {
-            val extractedId = repository.driveService.extractFolderId(folderInput)
-            preferences.setDriveFolder(extractedId, folderName)
-            _userMessage.value = "Pasta do Google Drive configurada!"
+            repository.takePersistableUriPermission(uri)
+            val name = displayName ?: (uri.lastPathSegment?.substringAfterLast(':') ?: "Pasta Selecionada")
+            preferences.setCustomFolder(uri.toString(), name)
+            _userMessage.value = "Pasta '$name' selecionada como fonte de papéis de parede!"
+            refreshWallpapers()
         }
     }
 
-    fun handleGoogleSignInResult(account: GoogleSignInAccount?) {
+    fun resetToDefaultFolder() {
         viewModelScope.launch {
-            if (account != null) {
-                preferences.setGoogleAccount(account.email, account.displayName)
-                _userMessage.value = "Conectado como ${account.displayName ?: account.email}!"
-            } else {
-                _userMessage.value = "Falha ao autenticar com a Conta Google."
-            }
+            preferences.setWallpaperSource(WallpaperSource.DEFAULT_APP_FOLDER)
+            _userMessage.value = "Fonte alterada para a pasta padrão do aplicativo."
+            refreshWallpapers()
         }
     }
 
-    fun signOutGoogle() {
-        driveAuthHelper.signOut {
-            viewModelScope.launch {
-                preferences.setGoogleAccount(null, null)
-                _userMessage.value = "Conta Google desconectada."
-            }
+    val defaultFolderPath: String
+        get() = repository.getDefaultFolderPath()
+
+    val readableDefaultFolderPath: String
+        get() = repository.getReadableDefaultFolderPath()
+
+    fun openFolder(context: android.content.Context) {
+        val config = scheduleConfig.value
+        val customUri = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER && !config.customFolderUriString.isNullOrBlank()) {
+            Uri.parse(config.customFolderUriString)
+        } else {
+            null
         }
-    }
 
-    val offlineFolderPath: String
-        get() = repository.getOfflineFolderPath()
-
-    val readableOfflineFolderPath: String
-        get() = repository.getReadableOfflineFolderPath()
-
-    fun openOfflineFolder(context: android.content.Context) {
-        val opened = repository.openOfflineFolderInFileManager(context)
+        val opened = repository.openFolderInFileManager(context, customUri)
         if (!opened) {
-            _userMessage.value = "Caminho copiado! Cole no seu gerenciador de arquivos."
+            _userMessage.value = "Caminho da pasta copiado para a área de transferência!"
         }
     }
 
     fun copyFolderPath(context: android.content.Context) {
-        repository.copyFolderPathToClipboard(context)
-        _userMessage.value = "Caminho da pasta copiado para a área de transferência!"
+        val config = scheduleConfig.value
+        val path = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER && !config.customFolderDisplayName.isNullOrBlank()) {
+            config.customFolderDisplayName ?: repository.getDefaultFolderPath()
+        } else {
+            repository.getDefaultFolderPath()
+        }
+        repository.copyFolderPathToClipboard(context, path)
+        _userMessage.value = "Caminho copiado para a área de transferência!"
     }
 
     fun dismissMessage() {

@@ -21,20 +21,13 @@ class AppPreferences(private val context: Context) {
         val INTERVAL_MINUTES = longPreferencesKey("interval_minutes")
         val WALLPAPER_TARGET = stringPreferencesKey("wallpaper_target")
         val WALLPAPER_SOURCE = stringPreferencesKey("wallpaper_source")
-        val REQUIRE_WIFI_ONLY = booleanPreferencesKey("require_wifi_only")
         val REQUIRE_CHARGING_ONLY = booleanPreferencesKey("require_charging_only")
         val LAST_CHANGED_TIMESTAMP = longPreferencesKey("last_changed_timestamp")
-        val LAST_SYNC_TIMESTAMP = longPreferencesKey("last_sync_timestamp")
         val CURRENT_WALLPAPER_TITLE = stringPreferencesKey("current_wallpaper_title")
 
-        // Google Drive Settings
-        val DRIVE_FOLDER_ID = stringPreferencesKey("drive_folder_id")
-        val DRIVE_FOLDER_NAME = stringPreferencesKey("drive_folder_name")
-        val GOOGLE_ACCOUNT_EMAIL = stringPreferencesKey("google_account_email")
-        val GOOGLE_ACCOUNT_DISPLAY_NAME = stringPreferencesKey("google_account_display_name")
-
-        // Custom Local Folder (SAF Uri)
-        val CUSTOM_LOCAL_FOLDER_URI = stringPreferencesKey("custom_local_folder_uri")
+        // Custom Local Folder (SAF Uri & display name)
+        val CUSTOM_FOLDER_URI = stringPreferencesKey("custom_folder_uri")
+        val CUSTOM_FOLDER_DISPLAY_NAME = stringPreferencesKey("custom_folder_display_name")
     }
 
     val scheduleConfigFlow: Flow<ScheduleConfig> = context.dataStore.data
@@ -53,21 +46,18 @@ class AppPreferences(private val context: Context) {
                     try { WallpaperTarget.valueOf(it) } catch (e: Exception) { WallpaperTarget.BOTH }
                 } ?: WallpaperTarget.BOTH,
                 source = preferences[PreferencesKeys.WALLPAPER_SOURCE]?.let {
-                    try { WallpaperSource.valueOf(it) } catch (e: Exception) { WallpaperSource.AUTO_SYNC }
-                } ?: WallpaperSource.AUTO_SYNC,
-                requireWifiOnly = preferences[PreferencesKeys.REQUIRE_WIFI_ONLY] ?: false,
+                    try { WallpaperSource.valueOf(it) } catch (e: Exception) { WallpaperSource.DEFAULT_APP_FOLDER }
+                } ?: WallpaperSource.DEFAULT_APP_FOLDER,
                 requireChargingOnly = preferences[PreferencesKeys.REQUIRE_CHARGING_ONLY] ?: false,
                 lastChangedTimestamp = preferences[PreferencesKeys.LAST_CHANGED_TIMESTAMP] ?: 0L,
-                lastSyncTimestamp = preferences[PreferencesKeys.LAST_SYNC_TIMESTAMP] ?: 0L,
-                currentWallpaperTitle = preferences[PreferencesKeys.CURRENT_WALLPAPER_TITLE]
+                currentWallpaperTitle = preferences[PreferencesKeys.CURRENT_WALLPAPER_TITLE],
+                customFolderUriString = preferences[PreferencesKeys.CUSTOM_FOLDER_URI],
+                customFolderDisplayName = preferences[PreferencesKeys.CUSTOM_FOLDER_DISPLAY_NAME]
             )
         }
 
-    val driveFolderIdFlow: Flow<String?> = context.dataStore.data.map { it[PreferencesKeys.DRIVE_FOLDER_ID] }
-    val driveFolderNameFlow: Flow<String?> = context.dataStore.data.map { it[PreferencesKeys.DRIVE_FOLDER_NAME] }
-    val googleAccountEmailFlow: Flow<String?> = context.dataStore.data.map { it[PreferencesKeys.GOOGLE_ACCOUNT_EMAIL] }
-    val googleAccountDisplayNameFlow: Flow<String?> = context.dataStore.data.map { it[PreferencesKeys.GOOGLE_ACCOUNT_DISPLAY_NAME] }
-    val customLocalFolderUriFlow: Flow<String?> = context.dataStore.data.map { it[PreferencesKeys.CUSTOM_LOCAL_FOLDER_URI] }
+    val customFolderUriFlow: Flow<String?> = context.dataStore.data.map { it[PreferencesKeys.CUSTOM_FOLDER_URI] }
+    val customFolderDisplayNameFlow: Flow<String?> = context.dataStore.data.map { it[PreferencesKeys.CUSTOM_FOLDER_DISPLAY_NAME] }
 
     suspend fun setAutoChangeEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
@@ -93,12 +83,6 @@ class AppPreferences(private val context: Context) {
         }
     }
 
-    suspend fun setRequireWifiOnly(enabled: Boolean) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.REQUIRE_WIFI_ONLY] = enabled
-        }
-    }
-
     suspend fun setRequireChargingOnly(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.REQUIRE_CHARGING_ONLY] = enabled
@@ -112,43 +96,19 @@ class AppPreferences(private val context: Context) {
         }
     }
 
-    suspend fun updateLastSync() {
+    suspend fun setCustomFolder(uriString: String?, displayName: String? = null) {
         context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.LAST_SYNC_TIMESTAMP] = System.currentTimeMillis()
-        }
-    }
-
-    suspend fun setDriveFolder(folderId: String, folderName: String = "") {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.DRIVE_FOLDER_ID] = folderId
-            if (folderName.isNotBlank()) {
-                preferences[PreferencesKeys.DRIVE_FOLDER_NAME] = folderName
-            }
-        }
-    }
-
-    suspend fun setGoogleAccount(email: String?, displayName: String?) {
-        context.dataStore.edit { preferences ->
-            if (email != null) {
-                preferences[PreferencesKeys.GOOGLE_ACCOUNT_EMAIL] = email
+            if (uriString != null) {
+                preferences[PreferencesKeys.CUSTOM_FOLDER_URI] = uriString
+                preferences[PreferencesKeys.WALLPAPER_SOURCE] = WallpaperSource.CUSTOM_DEVICE_FOLDER.name
             } else {
-                preferences.remove(PreferencesKeys.GOOGLE_ACCOUNT_EMAIL)
+                preferences.remove(PreferencesKeys.CUSTOM_FOLDER_URI)
             }
 
             if (displayName != null) {
-                preferences[PreferencesKeys.GOOGLE_ACCOUNT_DISPLAY_NAME] = displayName
+                preferences[PreferencesKeys.CUSTOM_FOLDER_DISPLAY_NAME] = displayName
             } else {
-                preferences.remove(PreferencesKeys.GOOGLE_ACCOUNT_DISPLAY_NAME)
-            }
-        }
-    }
-
-    suspend fun setCustomLocalFolderUri(uriString: String?) {
-        context.dataStore.edit { preferences ->
-            if (uriString != null) {
-                preferences[PreferencesKeys.CUSTOM_LOCAL_FOLDER_URI] = uriString
-            } else {
-                preferences.remove(PreferencesKeys.CUSTOM_LOCAL_FOLDER_URI)
+                preferences.remove(PreferencesKeys.CUSTOM_FOLDER_DISPLAY_NAME)
             }
         }
     }

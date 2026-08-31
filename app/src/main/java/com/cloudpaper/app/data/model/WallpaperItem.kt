@@ -3,7 +3,7 @@ package com.cloudpaper.app.data.model
 import android.net.Uri
 
 /**
- * Represents a wallpaper item either stored locally in cache or referenced from the cloud.
+ * Represents a wallpaper item stored locally in a folder on the device.
  */
 data class WallpaperItem(
     val id: String,
@@ -11,8 +11,5 @@ data class WallpaperItem(
     val fileUri: Uri? = null,
     val filePath: String? = null,
     val sizeBytes: Long = 0,
-    val dateModified: Long = System.currentTimeMillis(),
-    val isCloud: Boolean = false,
-    val cloudFileId: String? = null,
-    val thumbnailUrl: String? = null
+    val dateModified: Long = System.currentTimeMillis()
 )

@@ -21,3 +21,4 @@ string nav_settings
 style Theme.Cloudpaper
 xml backup_rules
 xml data_extraction_rules
+xml file_paths

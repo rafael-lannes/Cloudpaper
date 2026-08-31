@@ -1,9 +1,20 @@
 -- Merging decision tree log ---
+provider#androidx.core.content.FileProvider
+INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:49:9-57:20
+	android:grantUriPermissions
+		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:53:13-47
+	android:authorities
+		INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml
+		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:51:13-64
+	android:exported
+		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:52:13-37
+	android:name
+		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:50:13-62
 manifest
-ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-50:12
-INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-50:12
-INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-50:12
-INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-50:12
+ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-61:12
+INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-61:12
+INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-61:12
+INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:2:1-61:12
 MERGED from [androidx.navigation:navigation-common:2.8.7] C:\Users\rafae\.gradle\caches\8.11.1\transforms\58d0cceb0d60be5ad1c486dea68af9a1\transformed\navigation-common-2.8.7\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-runtime:2.8.7] C:\Users\rafae\.gradle\caches\8.11.1\transforms\cb8d065b4f94b30e08e5844bb901cd93\transformed\navigation-runtime-2.8.7\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-common-ktx:2.8.7] C:\Users\rafae\.gradle\caches\8.11.1\transforms\f6e86783b58040f2c8fcd229319c0f12\transformed\navigation-common-ktx-2.8.7\AndroidManifest.xml:2:1-7:12
@@ -136,8 +147,8 @@ ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:12:5-
 	android:name
 		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:12:22-74
 application
-ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:14:5-48:19
-INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:14:5-48:19
+ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:14:5-59:19
+INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:14:5-59:19
 MERGED from [com.google.android.gms:play-services-auth:21.3.0] C:\Users\rafae\.gradle\caches\8.11.1\transforms\7ffa12d26b6483c5f7df83889c8eaf20\transformed\play-services-auth-21.3.0\AndroidManifest.xml:22:5-38:19
 MERGED from [com.google.android.gms:play-services-auth:21.3.0] C:\Users\rafae\.gradle\caches\8.11.1\transforms\7ffa12d26b6483c5f7df83889c8eaf20\transformed\play-services-auth-21.3.0\AndroidManifest.xml:22:5-38:19
 MERGED from [com.google.android.gms:play-services-fido:20.0.1] C:\Users\rafae\.gradle\caches\8.11.1\transforms\3038b7fb73807b83d572fa276aa073b4\transformed\play-services-fido-20.0.1\AndroidManifest.xml:7:5-8:19
@@ -228,6 +239,12 @@ action#android.intent.action.MY_PACKAGE_REPLACED
 ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:44:17-84
 	android:name
 		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:44:25-81
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:54:13-56:54
+	android:resource
+		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:56:17-51
+	android:name
+		ADDED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml:55:17-67
 uses-sdk
 INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from D:\Gamedev\Projetos\Cloudpaper\app\src\main\AndroidManifest.xml

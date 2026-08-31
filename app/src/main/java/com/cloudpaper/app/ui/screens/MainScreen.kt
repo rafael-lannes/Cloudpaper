@@ -17,7 +17,7 @@ enum class NavigationTab(
     val unselectedIcon: ImageVector
 ) {
     HOME("Início", Icons.Filled.Home, Icons.Outlined.Home),
-    DRIVE("Google Drive", Icons.Filled.Cloud, Icons.Outlined.Cloud),
+    FOLDER("Pastas", Icons.Filled.Folder, Icons.Outlined.Folder),
     GALLERY("Galeria", Icons.Filled.PhotoLibrary, Icons.Outlined.PhotoLibrary),
     SETTINGS("Ajustes", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
@@ -86,24 +86,25 @@ fun MainScreen(viewModel: MainViewModel) {
             NavigationTab.HOME -> HomeScreen(
                 viewModel = viewModel,
                 onNavigateToGallery = { currentTab = NavigationTab.GALLERY },
-                onNavigateToDrive = { currentTab = NavigationTab.DRIVE },
+                onNavigateToFolderSelect = { currentTab = NavigationTab.FOLDER },
                 onNavigateToSettings = { currentTab = NavigationTab.SETTINGS },
                 modifier = Modifier.padding(paddingValues)
             )
 
-            NavigationTab.DRIVE -> DriveSyncScreen(
+            NavigationTab.FOLDER -> FolderSelectScreen(
                 viewModel = viewModel,
                 modifier = Modifier.padding(paddingValues)
             )
 
             NavigationTab.GALLERY -> GalleryScreen(
                 viewModel = viewModel,
-                onNavigateToDrive = { currentTab = NavigationTab.DRIVE },
+                onNavigateToFolderSelect = { currentTab = NavigationTab.FOLDER },
                 modifier = Modifier.padding(paddingValues)
             )
 
             NavigationTab.SETTINGS -> SettingsScreen(
                 viewModel = viewModel,
+                onNavigateToFolderSelect = { currentTab = NavigationTab.FOLDER },
                 modifier = Modifier.padding(paddingValues)
             )
         }
