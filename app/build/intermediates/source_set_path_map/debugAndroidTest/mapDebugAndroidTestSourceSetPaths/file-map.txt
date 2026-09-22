@@ -1,4 +1,0 @@
-com.cloudpaper.app.test.app-androidTest-0 D:\Gamedev\Projetos\Cloudpaper\app\build\generated\res\resValues\androidTest\debug
-com.cloudpaper.app.test.app-mergeDebugAndroidTestResources-1 D:\Gamedev\Projetos\Cloudpaper\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
-com.cloudpaper.app.test.app-mergeDebugAndroidTestResources-2 D:\Gamedev\Projetos\Cloudpaper\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
-com.cloudpaper.app.test.app-debugAndroidTest-3 D:\Gamedev\Projetos\Cloudpaper\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources

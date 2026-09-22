@@ -1,11 +1,15 @@
 package com.cloudpaper.app.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,21 +17,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.documentfile.provider.DocumentFile
+import com.cloudpaper.app.data.model.AutoChangeMode
 import com.cloudpaper.app.data.model.WallpaperSource
-import com.cloudpaper.app.data.model.WallpaperTarget
-import com.cloudpaper.app.ui.components.IntervalPickerDialog
-import com.cloudpaper.app.ui.components.PRESET_INTERVALS
+import com.cloudpaper.app.ui.components.TimePickerDialog
 import com.cloudpaper.app.ui.viewmodel.MainViewModel
 
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
-    onNavigateToFolderSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val config by viewModel.scheduleConfig.collectAsState()
-    var showIntervalDialog by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    // Launcher for SAF OpenDocumentTree
+    val folderPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { treeUri: Uri? ->
+        treeUri?.let { uri ->
+            val docFile = DocumentFile.fromTreeUri(context, uri)
+            val displayName = docFile?.name ?: uri.lastPathSegment?.substringAfterLast(':') ?: "Pasta Selecionada"
+            viewModel.setCustomFolder(uri, displayName)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -36,127 +51,101 @@ fun SettingsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Section 1: Auto Change Toggle
+        // Section 1: Modo de Troca Automática
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Troca Automática",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Gira os papéis de parede periodicamente em segundo plano",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = config.isAutoChangeEnabled,
-                        onCheckedChange = { viewModel.setAutoChangeEnabled(it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Interval Picker Button
-                Surface(
-                    onClick = { showIntervalDialog = true },
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Frequência de Troca",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                val intervalLabel = PRESET_INTERVALS.find { it.minutes == config.intervalMinutes }?.label
-                                    ?: "A cada ${config.intervalMinutes} minutos"
-                                Text(
-                                    text = intervalLabel,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
-                    }
-                }
-            }
-        }
-
-        // Section 2: Target Screens
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Onde Aplicar o Papel de Parede",
+                    text = "Modo de Troca Automática",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Defina se o wallpaper será trocado na tela inicial, bloqueio ou ambas:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                WallpaperTarget.entries.forEach { target ->
-                    Surface(
-                        onClick = { viewModel.setWallpaperTarget(target) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (config.target == target)
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        else
-                            MaterialTheme.colorScheme.surface,
-                        border = if (config.target == target)
-                            androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                        else null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                // Option: Agenda Diária
+                Surface(
+                    onClick = { viewModel.setChangeMode(AutoChangeMode.DAILY_SCHEDULE) },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (config.changeMode == AutoChangeMode.DAILY_SCHEDULE)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    else
+                        MaterialTheme.colorScheme.surface,
+                    border = if (config.changeMode == AutoChangeMode.DAILY_SCHEDULE)
+                        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                    else null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = config.target == target,
-                                onClick = { viewModel.setWallpaperTarget(target) }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                        RadioButton(
+                            selected = config.changeMode == AutoChangeMode.DAILY_SCHEDULE,
+                            onClick = { viewModel.setChangeMode(AutoChangeMode.DAILY_SCHEDULE) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = target.title,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium
+                                text = "Trocas Agendadas (Por Dia da Semana)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            val formattedTime = String.format("%02d:%02d", config.scheduledHour, config.scheduledMinute)
+                            Text(
+                                text = "Define um wallpaper por dia. Troca diária às $formattedTime",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        IconButton(onClick = { showTimePicker = true }) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = "Horário",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Option: Por Intervalo
+                Surface(
+                    onClick = { viewModel.setChangeMode(AutoChangeMode.INTERVAL) },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (config.changeMode == AutoChangeMode.INTERVAL)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    else
+                        MaterialTheme.colorScheme.surface,
+                    border = if (config.changeMode == AutoChangeMode.INTERVAL)
+                        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                    else null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = config.changeMode == AutoChangeMode.INTERVAL,
+                            onClick = { viewModel.setChangeMode(AutoChangeMode.INTERVAL) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Troca por Intervalo Contínuo",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Gira papéis de parede periodicamente (${config.intervalMinutes}m)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -164,108 +153,152 @@ fun SettingsScreen(
             }
         }
 
-        // Section 3: Pasta Ativa
+        // Section 2: Pasta de Origem dos Wallpapers
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Pasta Fonte Ativa",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                Text(
+                    text = "Pasta de Wallpapers",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
 
-                    TextButton(onClick = onNavigateToFolderSelect) {
-                        Text("Gerenciar")
-                    }
-                }
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Spacer(modifier = Modifier.height(6.dp))
-
+                // Option 1: Pasta Padrão
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surface,
+                    onClick = { viewModel.resetToDefaultFolder() },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (config.source == WallpaperSource.DEFAULT_APP_FOLDER)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    else
+                        MaterialTheme.colorScheme.surface,
+                    border = if (config.source == WallpaperSource.DEFAULT_APP_FOLDER)
+                        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                    else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text(
-                            text = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER)
-                                (config.customFolderDisplayName ?: "Pasta Personalizada")
-                            else
-                                viewModel.readableDefaultFolderPath,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = config.source == WallpaperSource.DEFAULT_APP_FOLDER,
+                            onClick = { viewModel.resetToDefaultFolder() }
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Pasta Padrão do Aplicativo",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = viewModel.readableDefaultFolderPath,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Option 2: Pasta Personalizada
+                Surface(
+                    onClick = {
+                        if (config.customFolderUriString != null) {
+                            viewModel.setWallpaperSource(WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                        } else {
+                            folderPickerLauncher.launch(null)
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    else
+                        MaterialTheme.colorScheme.surface,
+                    border = if (config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                    else null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = config.source == WallpaperSource.CUSTOM_DEVICE_FOLDER,
+                            onClick = {
+                                if (config.customFolderUriString != null) {
+                                    viewModel.setWallpaperSource(WallpaperSource.CUSTOM_DEVICE_FOLDER)
+                                } else {
+                                    folderPickerLauncher.launch(null)
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Pasta do Celular (Personalizada)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = config.customFolderDisplayName ?: "Nenhuma pasta selecionada",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
+                        onClick = { folderPickerLauncher.launch(null) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.CreateNewFolder, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Escolher Pasta", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    OutlinedButton(
                         onClick = { viewModel.openFolder(context) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.FolderShared,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Abrir Pasta", style = MaterialTheme.typography.labelMedium)
-                    }
-
-                    OutlinedButton(
-                        onClick = { viewModel.copyFolderPath(context) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Copiar Caminho", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
         }
 
-        // Section 4: Battery Constraint
+        // Section 3: Economia e Bateria
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Economia de Bateria",
+                    text = "Preferências",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -292,37 +325,97 @@ fun SettingsScreen(
             }
         }
 
-        // Section 5: App Info Card
+        // Section 4: Sobre & Créditos
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Cloudpaper v1.0",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    text = "Cloudpaper v1.2",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Trocador automático de wallpapers a partir de pastas locais do dispositivo.",
+                    text = "Trocador automático e agendado de papéis de parede a partir de pastas locais com enquadramento inteligente. 100% offline, seguro e sem anúncios.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Feito por: ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Rafael Lannes",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                FilledTonalButton(
+                    onClick = {
+                        try {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse("https://rafael-lannes.github.io")
+                            ).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Public,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "rafael-lannes.github.io",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }
 
-    if (showIntervalDialog) {
-        IntervalPickerDialog(
-            currentMinutes = config.intervalMinutes,
-            onDismiss = { showIntervalDialog = false },
-            onConfirm = { newMinutes -> viewModel.setIntervalMinutes(newMinutes) }
+    if (showTimePicker) {
+        TimePickerDialog(
+            initialHour = config.scheduledHour,
+            initialMinute = config.scheduledMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                viewModel.setScheduledTime(hour, minute)
+            }
         )
     }
 }

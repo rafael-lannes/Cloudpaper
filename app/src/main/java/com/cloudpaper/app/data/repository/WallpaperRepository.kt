@@ -5,16 +5,18 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
-import com.cloudpaper.app.data.model.WallpaperItem
-import com.cloudpaper.app.data.model.WallpaperSource
-import com.cloudpaper.app.data.model.WallpaperTarget
+import com.cloudpaper.app.data.model.*
 import com.cloudpaper.app.data.preferences.AppPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -37,6 +39,17 @@ class WallpaperRepository(
             File(it, "wallpapers")
         } ?: File(context.filesDir, "wallpapers")
 
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
+
+    /**
+     * Cache directory for framed schedule wallpapers.
+     */
+    private fun getFramingCacheDir(): File {
+        val dir = File(context.filesDir, "framed_cache")
         if (!dir.exists()) {
             dir.mkdirs()
         }
@@ -156,7 +169,6 @@ class WallpaperRepository(
                     if (customWallpapers.isNotEmpty()) {
                         customWallpapers
                     } else {
-                        // Fallback to default app folder if custom folder is empty or inaccessible
                         getWallpapersFromDefaultFolder()
                     }
                 } else {
@@ -207,7 +219,217 @@ class WallpaperRepository(
     }
 
     /**
-     * Applies a wallpaper to the selected screen(s).
+     * Obtains the native dimensions (width and height) of a WallpaperItem without decoding full bitmap.
+     */
+    suspend fun getImageDimensions(item: WallpaperItem): Pair<Int, Int> = withContext(Dispatchers.IO) {
+        try {
+            val openStream: () -> InputStream? = {
+                when {
+                    item.fileUri != null -> context.contentResolver.openInputStream(item.fileUri)
+                    item.filePath != null -> FileInputStream(File(item.filePath))
+                    else -> null
+                }
+            }
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            openStream()?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
+            if (options.outWidth > 0 && options.outHeight > 0) {
+                Pair(options.outWidth, options.outHeight)
+            } else {
+                val metrics = context.resources.displayMetrics
+                Pair(metrics.widthPixels, metrics.heightPixels)
+            }
+        } catch (e: Exception) {
+            val metrics = context.resources.displayMetrics
+            Pair(metrics.widthPixels, metrics.heightPixels)
+        }
+    }
+
+    /**
+     * Decodes a full Bitmap safely from a WallpaperItem.
+     */
+    private fun decodeBitmapFromItem(item: WallpaperItem, maxDimension: Int = 4096): Bitmap? {
+        return try {
+            val openStream: () -> InputStream? = {
+                when {
+                    item.fileUri != null -> context.contentResolver.openInputStream(item.fileUri)
+                    item.filePath != null -> FileInputStream(File(item.filePath))
+                    else -> null
+                }
+            }
+
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            openStream()?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
+
+            if (options.outWidth <= 0 || options.outHeight <= 0) return null
+
+            var sampleSize = 1
+            while (options.outWidth / sampleSize > maxDimension || options.outHeight / sampleSize > maxDimension) {
+                sampleSize *= 2
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+
+            openStream()?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, decodeOptions)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Renders a framed wallpaper bitmap, supporting multi-page parallax scrolling or fixed single screen.
+     */
+    suspend fun renderFramedWallpaper(
+        item: WallpaperItem,
+        isParallaxMode: Boolean,
+        scale: Float,
+        panX: Float,
+        panY: Float,
+        frameWidth: Float,
+        frameHeight: Float
+    ): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            val originalBitmap = decodeBitmapFromItem(item) ?: return@withContext null
+            val displayMetrics = context.resources.displayMetrics
+            val screenWidth = displayMetrics.widthPixels
+            val screenHeight = displayMetrics.heightPixels
+
+            val fWidth = if (frameWidth > 0f) frameWidth else screenWidth.toFloat()
+            val fHeight = if (frameHeight > 0f) frameHeight else screenHeight.toFloat()
+
+            val scaleRatioX = screenWidth.toFloat() / fWidth
+            val scaleRatioY = screenHeight.toFloat() / fHeight
+
+            val outputBitmap: Bitmap
+            val matrix = Matrix()
+
+            if (isParallaxMode) {
+                // Parallax / Multi-screen scrolling mode:
+                // Height matches screen height, width expands to keep full landscape panorama for parallax
+                val baseScale = screenHeight.toFloat() / originalBitmap.height.toFloat()
+                val totalScale = baseScale * scale
+
+                val outHeight = screenHeight
+                val outWidth = maxOf(screenWidth, (originalBitmap.width.toFloat() * totalScale).toInt())
+
+                val tx = (outWidth - originalBitmap.width * totalScale) / 2f + (panX * scaleRatioX)
+                val ty = (screenHeight - originalBitmap.height * totalScale) / 2f + (panY * scaleRatioY)
+
+                outputBitmap = Bitmap.createBitmap(outWidth, outHeight, Bitmap.Config.ARGB_8888)
+                matrix.postScale(totalScale, totalScale)
+                matrix.postTranslate(tx, ty)
+            } else {
+                // Fixed single-screen mode
+                val baseScale = maxOf(
+                    screenWidth.toFloat() / originalBitmap.width.toFloat(),
+                    screenHeight.toFloat() / originalBitmap.height.toFloat()
+                )
+                val totalScale = baseScale * scale
+
+                val tx = (screenWidth - originalBitmap.width * totalScale) / 2f + (panX * scaleRatioX)
+                val ty = (screenHeight - originalBitmap.height * totalScale) / 2f + (panY * scaleRatioY)
+
+                outputBitmap = Bitmap.createBitmap(screenWidth, screenHeight, Bitmap.Config.ARGB_8888)
+                matrix.postScale(totalScale, totalScale)
+                matrix.postTranslate(tx, ty)
+            }
+
+            val canvas = Canvas(outputBitmap)
+            val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+            canvas.drawBitmap(originalBitmap, matrix, paint)
+
+            if (!originalBitmap.isRecycled && originalBitmap != outputBitmap) {
+                originalBitmap.recycle()
+            }
+
+            outputBitmap
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Applies framed wallpaper to WallpaperManager, preserving parallax/scrolling dimensions on launchers.
+     */
+    suspend fun applyFramedWallpaper(
+        item: WallpaperItem,
+        isParallaxMode: Boolean,
+        scale: Float,
+        panX: Float,
+        panY: Float,
+        frameWidth: Float,
+        frameHeight: Float,
+        target: WallpaperTarget
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val wallpaperManager = WallpaperManager.getInstance(context)
+            val bitmap = renderFramedWallpaper(item, isParallaxMode, scale, panX, panY, frameWidth, frameHeight)
+
+            if (bitmap != null) {
+                try {
+                    wallpaperManager.suggestDesiredDimensions(bitmap.width, bitmap.height)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    wallpaperManager.setBitmap(bitmap, null, true, target.flag)
+                } else {
+                    wallpaperManager.setBitmap(bitmap)
+                }
+
+                bitmap.recycle()
+                preferences.updateLastChanged(item.name, item.filePath, item.fileUri?.toString())
+                true
+            } else {
+                applyWallpaper(item, target)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            applyWallpaper(item, target)
+        }
+    }
+
+    /**
+     * Saves a framed bitmap to internal cache for schedule persistence.
+     */
+    suspend fun saveFramedWallpaperForSchedule(
+        day: DayOfWeekItem,
+        item: WallpaperItem,
+        isParallaxMode: Boolean,
+        scale: Float,
+        panX: Float,
+        panY: Float,
+        frameWidth: Float,
+        frameHeight: Float
+    ): String? = withContext(Dispatchers.IO) {
+        try {
+            val bitmap = renderFramedWallpaper(item, isParallaxMode, scale, panX, panY, frameWidth, frameHeight) ?: return@withContext null
+            val targetFile = File(getFramingCacheDir(), "schedule_framed_${day.id}.jpg")
+
+            FileOutputStream(targetFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+            }
+            bitmap.recycle()
+            targetFile.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Applies a standard wallpaper to the selected screen(s).
      */
     suspend fun applyWallpaper(item: WallpaperItem, target: WallpaperTarget): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -227,7 +449,7 @@ class WallpaperRepository(
                         wallpaperManager.setBitmap(bitmap)
                     }
                 }
-                preferences.updateLastChanged(item.name)
+                preferences.updateLastChanged(item.name, item.filePath, item.fileUri?.toString())
                 true
             } else {
                 false
@@ -235,6 +457,58 @@ class WallpaperRepository(
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    /**
+     * Executes scheduled daily wallpaper change for today or a specific day.
+     */
+    suspend fun changeScheduledDailyWallpaper(forcedDay: DayOfWeekItem? = null): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val targetDay = forcedDay ?: DayOfWeekItem.currentDay()
+            val config = preferences.scheduleConfigFlow.first()
+            val dayConfig = config.weeklySchedule[targetDay]
+
+            if (dayConfig != null && dayConfig.isEnabled) {
+                // If a customized framed image file was saved, apply it directly
+                val customPath = dayConfig.customBitmapPath
+                if (!customPath.isNullOrBlank()) {
+                    val file = File(customPath)
+                    if (file.exists() && file.length() > 0) {
+                        val wallpaperManager = WallpaperManager.getInstance(context)
+                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                        if (bitmap != null) {
+                            try {
+                                wallpaperManager.suggestDesiredDimensions(bitmap.width, bitmap.height)
+                            } catch (e: Exception) {}
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                wallpaperManager.setBitmap(bitmap, null, true, dayConfig.target.flag)
+                            } else {
+                                wallpaperManager.setBitmap(bitmap)
+                            }
+                            bitmap.recycle()
+                            preferences.updateLastChanged(dayConfig.wallpaperName, file.absolutePath, null)
+                            return@withContext true
+                        }
+                    }
+                }
+
+                // Fall back to original file
+                val item = WallpaperItem(
+                    id = dayConfig.wallpaperId,
+                    name = dayConfig.wallpaperName,
+                    fileUri = dayConfig.fileUriString?.let { Uri.parse(it) },
+                    filePath = dayConfig.filePath
+                )
+                val success = applyWallpaper(item, dayConfig.target)
+                if (success) return@withContext true
+            }
+
+            // Fallback to random change from active folder
+            changeRandomWallpaper()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            changeRandomWallpaper()
         }
     }
 

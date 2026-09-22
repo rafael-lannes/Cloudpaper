@@ -2,7 +2,9 @@ package com.cloudpaper.app.worker
 
 import android.content.Context
 import androidx.work.*
+import com.cloudpaper.app.data.model.AutoChangeMode
 import com.cloudpaper.app.data.model.ScheduleConfig
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 object WorkScheduler {
@@ -10,7 +12,7 @@ object WorkScheduler {
     const val WALLPAPER_WORK_NAME = "CloudpaperWallpaperChangeWork"
 
     /**
-     * Schedules periodic wallpaper rotation using Android WorkManager.
+     * Schedules periodic or daily wallpaper rotation using Android WorkManager.
      */
     fun scheduleWallpaperRotation(context: Context, config: ScheduleConfig) {
         val workManager = WorkManager.getInstance(context)
@@ -20,21 +22,48 @@ object WorkScheduler {
             return
         }
 
-        // WorkManager minimum periodic interval is 15 minutes
-        val intervalMinutes = maxOf(15L, config.intervalMinutes)
-
         val constraintsBuilder = Constraints.Builder()
         if (config.requireChargingOnly) {
             constraintsBuilder.setRequiresCharging(true)
         }
 
-        val workRequest = PeriodicWorkRequestBuilder<WallpaperChangeWorker>(
-            intervalMinutes, TimeUnit.MINUTES,
-            minOf(5L, intervalMinutes / 3), TimeUnit.MINUTES
-        )
-            .setConstraints(constraintsBuilder.build())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
-            .build()
+        val workRequest: PeriodicWorkRequest = when (config.changeMode) {
+            AutoChangeMode.DAILY_SCHEDULE -> {
+                val now = Calendar.getInstance()
+                val target = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, config.scheduledHour)
+                    set(Calendar.MINUTE, config.scheduledMinute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                if (target.before(now) || target.timeInMillis <= now.timeInMillis) {
+                    target.add(Calendar.DAY_OF_YEAR, 1)
+                }
+
+                val initialDelayMillis = maxOf(0L, target.timeInMillis - now.timeInMillis)
+
+                PeriodicWorkRequestBuilder<WallpaperChangeWorker>(
+                    24, TimeUnit.HOURS,
+                    15, TimeUnit.MINUTES
+                )
+                    .setInitialDelay(initialDelayMillis, TimeUnit.MILLISECONDS)
+                    .setConstraints(constraintsBuilder.build())
+                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                    .build()
+            }
+
+            AutoChangeMode.INTERVAL -> {
+                val intervalMinutes = maxOf(15L, config.intervalMinutes)
+                PeriodicWorkRequestBuilder<WallpaperChangeWorker>(
+                    intervalMinutes, TimeUnit.MINUTES,
+                    minOf(5L, intervalMinutes / 3), TimeUnit.MINUTES
+                )
+                    .setConstraints(constraintsBuilder.build())
+                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                    .build()
+            }
+        }
 
         workManager.enqueueUniquePeriodicWork(
             WALLPAPER_WORK_NAME,
